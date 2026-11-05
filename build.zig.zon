@@ -1,0 +1,32 @@
+.{
+    .name = .tsfm_pg,
+    .version = "0.1.0",
+    .fingerprint = 0x4cca1d9a3a2b8a05,
+    .minimum_zig_version = "0.17.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "extension",
+        "src",
+        "sql",
+        "expected",
+        "tests",
+        "scripts",
+        "README.md",
+        "LICENSE",
+        "NOTICE",
+        "Dockerfile",
+    },
+    .dependencies = .{
+        .pgzx = .{
+            // pgzx's published package omits build.zig.zon from its .paths, so
+            // a URL dependency loses its own dependencies. Use the sibling
+            // checkout in this workspace; pin by commit when pgzx fixes that.
+            .path = "../pgzx",
+        },
+        .tsfm = .{
+            .url = "git+https://github.com/barddoo/tsfm-zig#332fa1b966b9ea1fc91f0f66875217c8929acbff",
+            .hash = "tsfm-0.1.0-Q8PMSy9_AgDHDbMjv7Soz8a3dJOelmPts7RXTy1QOTmz",
+        },
+    },
+}

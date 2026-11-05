@@ -1,0 +1,22 @@
+# Postgres with tsfm. The checkpoint is downloaded once, on first start, into a
+# named volume and reused afterwards.
+#
+#   docker build -t tsfm-pg:slim .
+#   HF_TOKEN=... docker compose -f deploy/compose.yaml up      # HF_TOKEN only for gated repos
+#
+# Then:  psql -h localhost -U postgres -c 'CREATE EXTENSION tsfm'
+services:
+  db:
+    image: tsfm-pg:slim
+    environment:
+      POSTGRES_PASSWORD: change-me
+      TSFM_MODEL_REPO: amazon/chronos-2          # or a Timestral repo you have accepted terms for
+      TSFM_MODEL_REVISION: main                  # pin a commit for reproducible deploys
+      HF_TOKEN: ${HF_TOKEN:-}
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - tsfm-models:/usr/share/postgresql/17/tsfm/models
+volumes:
+  pgdata:
+  tsfm-models:

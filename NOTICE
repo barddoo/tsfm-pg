@@ -1,0 +1,12 @@
+tsfm-pg
+Copyright 2026 the tsfm-pg contributors
+
+This product includes software developed by the pgzx project
+(https://github.com/xataio/pgzx), licensed under the Apache License 2.0.
+
+It links the tsfm-zig inference engine (https://github.com/barddoo/tsfm-zig),
+licensed under the Apache License 2.0, and uses the Chronos-2 model
+(https://huggingface.co/amazon/chronos-2), also Apache-2.0.
+
+Timestral weights are not included: their Modified MIT terms include a revenue
+cap, so they are fetched by the user, not redistributed here.

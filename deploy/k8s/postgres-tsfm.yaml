@@ -1,0 +1,61 @@
+# Single-instance example: an init container fetches the checkpoint into a
+# shared volume, so the database container never needs outbound network access.
+# Adapt the storage classes, secrets and resources before using this for real.
+apiVersion: v1
+kind: Secret
+metadata: { name: tsfm-pg }
+stringData:
+  POSTGRES_PASSWORD: change-me
+  HF_TOKEN: ""            # only needed for gated Hugging Face repos
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: tsfm-models }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 2Gi } }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: tsfm-pg }
+spec:
+  serviceName: tsfm-pg
+  replicas: 1
+  selector: { matchLabels: { app: tsfm-pg } }
+  template:
+    metadata: { labels: { app: tsfm-pg } }
+    spec:
+      securityContext: { fsGroup: 999 }      # the postgres user in the official image
+      initContainers:
+        - name: fetch-model
+          image: tsfm-pg:slim
+          command: ["bash", "-c"]
+          args:
+            - |
+              [ -s "$DIR/model.safetensors" ] && [ -s "$DIR/config.json" ] \
+                || tsfm-fetch-model "$DIR" "$TSFM_MODEL_REPO"
+          env:
+            - { name: DIR, value: /models }
+            - { name: TSFM_MODEL_REPO, value: amazon/chronos-2 }
+            - { name: TSFM_MODEL_REVISION, value: main }
+            - name: HF_TOKEN
+              valueFrom: { secretKeyRef: { name: tsfm-pg, key: HF_TOKEN } }
+          securityContext: { runAsUser: 999, runAsGroup: 999 }
+          volumeMounts: [{ name: models, mountPath: /models }]
+      containers:
+        - name: postgres
+          image: tsfm-pg:slim
+          envFrom: [{ secretRef: { name: tsfm-pg } }]
+          ports: [{ containerPort: 5432 }]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            # Read-only: the engine only mmaps the weights.
+            - { name: models, mountPath: /usr/share/postgresql/17/tsfm/models, readOnly: true }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: tsfm-models }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 10Gi } }

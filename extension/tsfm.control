@@ -1,0 +1,5 @@
+# tsfm extension
+comment = 'Local time-series forecasting with Chronos-2; the data never leaves Postgres'
+default_version = '0.1'
+module_pathname = '$libdir/tsfm'
+relocatable = false
