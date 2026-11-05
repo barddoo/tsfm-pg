@@ -412,6 +412,7 @@ src/main.zig              PG_MODULE_MAGIC, function registration, _PG_init/_PG_f
 src/guc.zig               the settings table above
 src/engine.zig            model lifetime, Chronos-2 + Timestral load/forecast, stub
 src/forecast.zig          array marshalling, SRF iterators, error translation
+src/cursor.zig            flat-result cursor for the SRF iterators
 src/functions.zig         SQL-visible scalar functions and model info
 src/engine_test.zig       engine-only tests
 tests/parity.sql          Chronos-2 numerical parity fixtures

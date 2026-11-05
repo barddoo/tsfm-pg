@@ -458,14 +458,26 @@ pub fn forecastBatch(
         return Error.MultivariateUnsupported;
 
     const total = rows * horizon * q;
+
+    // Common case: everything fits in one chunk. Return the engine's buffer
+    // directly instead of allocating a second result and copying into it.
+    if (n_series <= 64) {
+        if (cancel) |f| try f(cancel_ctx);
+        const part = switch (g.family) {
+            .chronos2 => try chronosBatchChunk(history, 0, n_series, t, horizon, opts.max_context),
+            .timestral => try timestralBatchChunk(history, 0, n_series, n_variates, t, horizon, cov, opts),
+        };
+        if (sort) sortRows(part, rows * horizon, q);
+        return part;
+    }
+
     const full = try g.allocator.alloc(f32, total);
     errdefer g.allocator.free(full);
 
-    const chunk_series = @min(n_series, 64);
     var s0: usize = 0;
     while (s0 < n_series) {
         if (cancel) |f| try f(cancel_ctx);
-        const s1 = @min(n_series, s0 + chunk_series);
+        const s1 = @min(n_series, s0 + 64);
         const part = switch (g.family) {
             .chronos2 => try chronosBatchChunk(history, s0, s1, t, horizon, opts.max_context),
             .timestral => try timestralBatchChunk(history, s0, s1, n_variates, t, horizon, cov, opts),

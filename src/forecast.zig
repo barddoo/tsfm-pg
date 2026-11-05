@@ -264,63 +264,24 @@ pub const BatchRow = struct {
     value: f64,
 };
 
-/// Position of a flat result index within `(series, variate, step, quantile)`.
-const Pos = struct { series: usize, variate: usize, step: usize, quantile: usize };
+const Cursor = @import("cursor.zig").Cursor;
 
-fn position(index: usize, n_variates: usize, horizon: usize, q: usize) Pos {
-    const per_variate = horizon * q;
-    const per_series = n_variates * per_variate;
-    const rem_series = index % per_series;
-    const rem_variate = rem_series % per_variate;
-    return .{
-        .series = index / per_series,
-        .variate = rem_series / per_variate,
-        .step = rem_variate / q,
-        .quantile = rem_variate % q,
-    };
+fn cursorFrom(r: Run) Cursor {
+    return .init(r.result, r.quantiles, r.n_variates, r.horizon);
 }
-
-/// Iterator state shared by the three SRFs; only the row shape differs.
-const Cursor = struct {
-    result: []f32,
-    quantiles: []const f64,
-    n_series: usize,
-    n_variates: usize,
-    horizon: usize,
-    index: usize = 0,
-
-    fn from(r: Run) Cursor {
-        return .{
-            .result = r.result,
-            .quantiles = r.quantiles,
-            .n_series = r.n_series,
-            .n_variates = r.n_variates,
-            .horizon = r.horizon,
-        };
-    }
-
-    /// Next flat position and its value, or null at the end.
-    fn advance(self: *Cursor) ?struct { pos: Pos, value: f64 } {
-        const q = self.quantiles.len;
-        if (self.index >= self.n_series * self.n_variates * self.horizon * q) return null;
-        defer self.index += 1;
-        return .{
-            .pos = position(self.index, self.n_variates, self.horizon, q),
-            .value = @floatCast(self.result[self.index]),
-        };
-    }
-};
 
 /// Iterator behind `tsfm_forecast(...)`: one row per step and quantile.
 pub const ForecastSet = struct {
     cursor: Cursor,
 
     pub fn next(self: *ForecastSet) ?Row {
-        const n = self.cursor.advance() orelse return null;
+        const c = &self.cursor;
+        if (c.index >= c.result.len) return null;
+        defer c.advance();
         return .{
-            .step = @intCast(n.pos.step + 1),
-            .quantile = self.cursor.quantiles[n.pos.quantile],
-            .value = n.value,
+            .step = @intCast(c.step + 1),
+            .quantile = c.quantiles[c.quantile],
+            .value = @floatCast(c.result[c.index]),
         };
     }
 
@@ -334,12 +295,14 @@ pub const ExtendedSet = struct {
     cursor: Cursor,
 
     pub fn next(self: *ExtendedSet) ?ExtendedRow {
-        const n = self.cursor.advance() orelse return null;
+        const c = &self.cursor;
+        if (c.index >= c.result.len) return null;
+        defer c.advance();
         return .{
-            .variate = @intCast(n.pos.variate + 1),
-            .step = @intCast(n.pos.step + 1),
-            .quantile = self.cursor.quantiles[n.pos.quantile],
-            .value = n.value,
+            .variate = @intCast(c.variate + 1),
+            .step = @intCast(c.step + 1),
+            .quantile = c.quantiles[c.quantile],
+            .value = @floatCast(c.result[c.index]),
         };
     }
 
@@ -354,13 +317,15 @@ pub const BatchSet = struct {
     cursor: Cursor,
 
     pub fn next(self: *BatchSet) ?BatchRow {
-        const n = self.cursor.advance() orelse return null;
+        const c = &self.cursor;
+        if (c.index >= c.result.len) return null;
+        defer c.advance();
         return .{
-            .series = @intCast(n.pos.series + 1),
-            .variate = @intCast(n.pos.variate + 1),
-            .step = @intCast(n.pos.step + 1),
-            .quantile = self.cursor.quantiles[n.pos.quantile],
-            .value = n.value,
+            .series = @intCast(c.series + 1),
+            .variate = @intCast(c.variate + 1),
+            .step = @intCast(c.step + 1),
+            .quantile = c.quantiles[c.quantile],
+            .value = @floatCast(c.result[c.index]),
         };
     }
 
@@ -370,7 +335,7 @@ pub const BatchSet = struct {
 };
 
 pub fn forecastSet(history: ?[]const ?f64, horizon: ?i32) !srf.Table(ForecastSet) {
-    return .{ .iter = .{ .cursor = .from(try run(history, horizon)) } };
+    return .{ .iter = .{ .cursor = cursorFrom(try run(history, horizon)) } };
 }
 
 pub fn forecastExtendedSet(
@@ -382,7 +347,7 @@ pub fn forecastExtendedSet(
     cat_past: ?[]const ?f64,
     cat_known: ?[]const ?f64,
 ) !srf.Table(ExtendedSet) {
-    return .{ .iter = .{ .cursor = .from(try runExtended(history, horizon, n_variates, past, known, cat_past, cat_known)) } };
+    return .{ .iter = .{ .cursor = cursorFrom(try runExtended(history, horizon, n_variates, past, known, cat_past, cat_known)) } };
 }
 
 pub fn forecastBatchSet(
@@ -395,7 +360,7 @@ pub fn forecastBatchSet(
     cat_past: ?[]const ?f64,
     cat_known: ?[]const ?f64,
 ) !srf.Table(BatchSet) {
-    return .{ .iter = .{ .cursor = .from(try runBatch(history, horizon, n_series, n_variates, past, known, cat_past, cat_known)) } };
+    return .{ .iter = .{ .cursor = cursorFrom(try runBatch(history, horizon, n_series, n_variates, past, known, cat_past, cat_known)) } };
 }
 
 /// Copy a run into a Postgres-owned array. `out_len` must have been derived

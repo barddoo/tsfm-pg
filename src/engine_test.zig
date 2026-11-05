@@ -1,6 +1,7 @@
 const std = @import("std");
 const engine = @import("engine.zig");
 const simd = @import("simd.zig");
+const Cursor = @import("cursor.zig").Cursor;
 
 fn env(name: []const u8) ?[]const u8 {
     for (std.mem.span(std.c.environ)) |maybe| {
@@ -120,6 +121,43 @@ test "inspect reports missing files without failing" {
     const root = try engine.inspect("/");
     try std.testing.expectEqual(engine.FileState.missing, root.config);
     try std.testing.expectEqual(engine.FileState.missing, root.weights);
+}
+
+test "cursor walks flat results in series, variate, step, quantile order" {
+    const n_series = 2;
+    const n_variates = 2;
+    const horizon = 3;
+    const levels = [_]f64{ 0.1, 0.5, 0.9 };
+
+    var result: [n_series * n_variates * horizon * levels.len]f32 = undefined;
+    for (&result, 0..) |*v, i| v.* = @floatFromInt(i);
+
+    var c = Cursor.init(&result, &levels, n_variates, horizon);
+    var index: usize = 0;
+    var series: u32 = 0;
+    while (series < n_series) : (series += 1) {
+        var variate: u32 = 0;
+        while (variate < n_variates) : (variate += 1) {
+            var step: u32 = 0;
+            while (step < horizon) : (step += 1) {
+                var quantile: u32 = 0;
+                while (quantile < levels.len) : (quantile += 1) {
+                    try std.testing.expect(!c.done());
+                    try std.testing.expectEqual(series, c.series);
+                    try std.testing.expectEqual(variate, c.variate);
+                    try std.testing.expectEqual(step, c.step);
+                    try std.testing.expectEqual(quantile, c.quantile);
+                    try std.testing.expectEqual(@as(f32, @floatFromInt(index)), c.value());
+                    try std.testing.expectEqual(levels[quantile], c.quantileLevel());
+                    c.advance();
+                    index += 1;
+                }
+            }
+        }
+    }
+    try std.testing.expect(c.done());
+    // The iterator state is touched once per emitted row; keep it in one line.
+    try std.testing.expect(@sizeOf(Cursor) <= 64);
 }
 
 test "optional real-model smoke test" {
