@@ -245,11 +245,11 @@ pub fn ensure(dir: []const u8, threads: usize, choice: ModelChoice) !void {
     errdefer if (arena_live) g.model_arena.deinit();
     switch (family) {
         .chronos2 => {
-            model = .{ .chronos2 = try tsfm.chronos2.model.Model.load(g.io, g.model_arena.allocator(), parsed.chronos2.value, &g.weights) };
+            model = .{ .chronos2 = try tsfm.chronos2.model.Model.load(g.io, g.model_arena.allocator(), tsfm.core.nn.defaultBackend(), parsed.chronos2.value, &g.weights) };
             model_live = true;
         },
         .timestral => {
-            model = .{ .timestral = try tsfm.model.Model.load(g.io, g.model_arena.allocator(), parsed.timestral.value, &g.weights) };
+            model = .{ .timestral = try tsfm.model.Model.load(g.io, g.model_arena.allocator(), tsfm.core.nn.defaultBackend(), parsed.timestral.value, &g.weights) };
             model_live = true;
         },
     }

@@ -25,8 +25,8 @@
             .path = "../pgzx",
         },
         .tsfm = .{
-            .url = "git+https://github.com/barddoo/tsfm-zig#332fa1b966b9ea1fc91f0f66875217c8929acbff",
-            .hash = "tsfm-0.1.0-Q8PMSy9_AgDHDbMjv7Soz8a3dJOelmPts7RXTy1QOTmz",
+            .url = "git+https://github.com/barddoo/tsfm-zig#81d13de5608e7e4ad2422c9abe0174f7ffa0434f",
+            .hash = "tsfm-0.1.0-Q8PMS54zBADZJ7chtjhDS7BDK-hZHlOuXvQwvn-Eam7Q",
         },
     },
 }

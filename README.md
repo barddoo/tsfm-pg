@@ -228,6 +228,30 @@ is a path dependency (`../pgzx`) because its published package omits
 `build.zig.zon` from `.paths`; clone it next to this repository. Both commits
 are recorded in `build.zig.zon` / `Dockerfile`.
 
+### GPU
+
+The engine's matrix kernels can run on a GPU. This is opt-in, because it keeps a
+second copy of the model's GEMM weights in device memory:
+
+```sh
+zig build -Dgpu=metal          # macOS
+zig build -Dgpu=cuda           # Linux with an NVIDIA driver
+```
+
+The default is `-Dgpu=none`. The extension is still one `tsfm.so`: the CUDA
+backend loads `libcudart`/`libcublas` with `dlopen` at model-load time, so the
+build needs no CUDA toolkit or link-time libraries. At runtime, a normal CUDA
+installation is found automatically; set `TSFM_CUDA_LIB_DIR` to use a private
+copy. The variable must be in the **Postgres server process's** environment
+(systemd `Environment=`, the compose service, or the shell that runs `pg_ctl`),
+not just the `psql` session. If the device or libraries are missing, the engine
+logs one warning and uses the CPU kernels instead.
+
+The backend is selected once, before the model is loaded. `tsfm.threads` still
+controls the CPU worker pool for elementwise work; cuBLAS/MPS parallelize the
+large matrix products internally. See `tsfm-zig/docs/plans/gpu-cuda.md` and
+`gpu-metal.md` for thresholds and measured results.
+
 ### SIMD
 
 The model's matrix kernels (in `tsfm-zig`, built with `-Dblas=builtin`) and the

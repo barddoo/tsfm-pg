@@ -14,6 +14,10 @@ ARG PGZX_COMMIT=4d99bbc56be9a00aac3e27c6e733840245e54e89
 # newer); the image will not start on older CPUs. Build with
 # `--build-arg TSFM_CPU=baseline` for a portable SSE2 image.
 ARG TSFM_CPU=x86_64_v3
+# Engine GPU backend: none or cuda. A cuda build compiles without the toolkit
+# (the engine dlopens libcudart/libcublas), but the runtime image must provide
+# those libraries and the NVIDIA container runtime.
+ARG TSFM_GPU=none
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -34,7 +38,7 @@ WORKDIR /src/tsfm-pg
 COPY . .
 
 ENV PG_CONFIG=/usr/lib/postgresql/17/bin/pg_config
-RUN zig build -Doptimize=ReleaseSafe -Dcpu="${TSFM_CPU}" -p /usr/lib/postgresql/17
+RUN zig build -Doptimize=ReleaseSafe -Dcpu="${TSFM_CPU}" -Dgpu="${TSFM_GPU}" -p /usr/lib/postgresql/17
 
 FROM postgres:17-bookworm AS runtime
 ARG PG_MAJOR=17

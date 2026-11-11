@@ -4,6 +4,8 @@ const std = @import("std");
 // and provide functions to create and test extensions.
 const PGBuild = @import("pgzx").Build;
 
+const Gpu = enum { none, metal, cuda };
+
 // Single source of truth for the version and the engine commit: build.zig.zon.
 const zon = @import("build.zig.zon");
 const engine_commit = blk: {
@@ -13,6 +15,10 @@ const engine_commit = blk: {
 };
 
 pub fn build(b: *std.Build) void {
+    // GPU offload is opt-in: `metal` on macOS, `cuda` on Linux/NVIDIA. The
+    // engine falls back to CPU kernels when no device is available.
+    const gpu = b.option(Gpu, "gpu", "Engine GPU backend: none, metal (macOS), cuda (Linux/NVIDIA)") orelse .none;
+
     const proj = PGBuild.Project.init(b, .{
         .name = "tsfm",
         .version = .{ .major = 0, .minor = 1 },
@@ -37,6 +43,7 @@ pub fn build(b: *std.Build) void {
         .target = proj.pgbuild.options.target,
         .optimize = proj.pgbuild.options.optimize,
         .blas = .builtin,
+        .gpu = gpu,
     });
     const tsfm_mod = tsfm_dep.module("timestral");
 
