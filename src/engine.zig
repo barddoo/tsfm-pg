@@ -202,7 +202,7 @@ pub fn ensure(dir: []const u8, threads: usize, choice: ModelChoice) !void {
 
     const cfg_path = try std.fmt.allocPrint(g.allocator, "{s}/config.json", .{dir});
     defer g.allocator.free(cfg_path);
-    const cfg_text = tsfm.sys.readFile(g.io, g.allocator, cfg_path) catch |e| switch (e) {
+    const cfg_text = std.Io.Dir.cwd().readFileAlloc(g.io, cfg_path, g.allocator, .limited(1 << 20)) catch |e| switch (e) {
         error.FileNotFound => return Error.ModelFileNotFound,
         else => return e,
     };

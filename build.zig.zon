@@ -2,7 +2,7 @@
     .name = .tsfm_pg,
     .version = "0.1.0",
     .fingerprint = 0x4cca1d9a3a2b8a05,
-    .minimum_zig_version = "0.17.0",
+    .minimum_zig_version = "0.17.1",
     .paths = .{
         "build.zig",
         "build.zig.zon",
@@ -25,8 +25,8 @@
             .path = "../pgzx",
         },
         .tsfm = .{
-            .url = "git+https://github.com/barddoo/tsfm-zig#81d13de5608e7e4ad2422c9abe0174f7ffa0434f",
-            .hash = "tsfm-0.1.0-Q8PMS54zBADZJ7chtjhDS7BDK-hZHlOuXvQwvn-Eam7Q",
+            .url = "git+https://github.com/barddoo/tsfm-zig.git#5ec4ab7f517486ccc8f0523e406a250f06974fe3",
+            .hash = "tsfm-0.1.0-Q8PMS7FJBAChQ3aJQlHxOx0Z348c_ITlRmsVg09DmxEg",
         },
     },
 }
