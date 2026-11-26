@@ -237,6 +237,9 @@ pub fn ensure(dir: []const u8, threads: usize, choice: ModelChoice) !void {
     };
     var weights_live = true;
     errdefer if (weights_live) g.weights.close(g.io);
+    // Faulting the mapping in during load moves the cost off the first forecast; it only pays off
+    // single-threaded (parallel faults are already cheap), so mirror the CLI's default.
+    if (threads == 1) g.weights.prefetch(.will_need);
 
     var model: LoadedModel = undefined;
     var model_live = false;

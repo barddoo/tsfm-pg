@@ -12,6 +12,7 @@
         "expected",
         "tests",
         "scripts",
+        "dev",
         "README.md",
         "LICENSE",
         "NOTICE",
@@ -19,14 +20,12 @@
     },
     .dependencies = .{
         .pgzx = .{
-            // pgzx's published package omits build.zig.zon from its .paths, so
-            // a URL dependency loses its own dependencies. Use the sibling
-            // checkout in this workspace; pin by commit when pgzx fixes that.
-            .path = "../pgzx",
+            .url = "git+https://github.com/barddoo/pgzx.git#2fd8c5277d2315f85b6934405feda4758db6b33f",
+            .hash = "pgzx-0.3.0-PsG6MO57CQCB08syWVg8iBx45_47ePd7l0rzHMnXXOA3",
         },
         .tsfm = .{
-            .url = "git+https://github.com/barddoo/tsfm-zig.git#5ec4ab7f517486ccc8f0523e406a250f06974fe3",
-            .hash = "tsfm-0.1.0-Q8PMS7FJBAChQ3aJQlHxOx0Z348c_ITlRmsVg09DmxEg",
+            .url = "git+https://github.com/barddoo/tsfm-zig.git#35b89587d52e551b53502cfdd6573db604743279",
+            .hash = "tsfm-0.1.0-Q8PMS0VOBACTdeaD3GZH13FMvUQP7NA9IR3_yBPZioYn",
         },
     },
 }

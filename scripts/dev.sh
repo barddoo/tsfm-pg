@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# One entry point for the local dev loop. Works inside or outside `nix develop`.
+# One entry point for the local dev loop.
 #
-#   scripts/dev.sh build      build + install into $PG_HOME (absolute PG_CONFIG, -p set)
+#   scripts/dev.sh pginit     initialise a local cluster (first-time setup)
+#   scripts/dev.sh build      build + install into $PG_HOME
 #   scripts/dev.sh start      start the local cluster if it is not running
 #   scripts/dev.sh stop       stop it
 #   scripts/dev.sh regress    build, start, run pg_regress
@@ -10,20 +11,25 @@
 #   scripts/dev.sh all        test + regress + smoke
 #
 # Environment:
-#   PG_HOME      Postgres install prefix with bin/pg_config   (default: <repo>/out/16)
-#   PGPORT       port                                         (default: 5432)
-#   PGUSER       role                                         (default: postgres)
-#   TSFM_CPU     value for -Dcpu                              (default: native)
+#   PG_HOME      Postgres install prefix with bin/pg_config
+#                (default: brew postgresql@18 if available, else <repo>/out/18)
+#   PGDATA_DIR   cluster data directory  (default: <repo>/out/data)
+#   PGPORT       port                    (default: 5432)
+#   PGUSER       role                    (default: postgres)
+#   TSFM_CPU     value for -Dcpu         (default: native)
 #   TSFM_TEST_MODEL  model dir for `smoke`; skipped when unset
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PG_HOME="${PG_HOME:-$root/out/16}"
+
+_brew_pg() { brew --prefix postgresql@18 2>/dev/null || true; }
+PG_HOME="${PG_HOME:-$(_brew_pg)}"
+PG_HOME="${PG_HOME:-$root/out/18}"
+PGDATA_DIR="${PGDATA_DIR:-$root/out/data}"
 PGPORT="${PGPORT:-5432}"
 PGUSER="${PGUSER:-postgres}"
 cpu="${TSFM_CPU:-native}"
-data="$PG_HOME/var/postgres/data"
-logfile="$PG_HOME/var/postgres/log/dev.log"
+logfile="$root/out/pg.log"
 
 [[ -x "$PG_HOME/bin/pg_config" ]] || {
     echo "error: $PG_HOME/bin/pg_config not found; set PG_HOME to your Postgres prefix" >&2
@@ -36,19 +42,26 @@ running() { "$PG_HOME/bin/pg_isready" -q -h /tmp -p "$PGPORT"; }
 
 zig_build() { (cd "$root" && zig build "$@" -Dcpu="$cpu" -p "$PG_HOME" -Dpg-port="$PGPORT" -Dpg-user="$PGUSER"); }
 
+cmd_pginit() {
+    [[ -d "$PGDATA_DIR" ]] && { echo "cluster already exists at $PGDATA_DIR"; return; }
+    mkdir -p "$PGDATA_DIR" "$(dirname "$logfile")"
+    "$PG_HOME/bin/initdb" -D "$PGDATA_DIR" -U "$PGUSER" --no-instructions >/dev/null
+    echo "initialised cluster at $PGDATA_DIR"
+}
+
 cmd_build() { (cd "$root" && zig build -Dcpu="$cpu" -p "$PG_HOME"); echo "installed into $PG_HOME"; }
 
 cmd_start() {
-    [[ -d "$data" ]] || { echo "error: no cluster at $data; run pginit first" >&2; exit 1; }
+    [[ -d "$PGDATA_DIR" ]] || { echo "error: no cluster at $PGDATA_DIR; run: scripts/dev.sh pginit" >&2; exit 1; }
     if running; then echo "already running on :$PGPORT"; return; fi
     mkdir -p "$(dirname "$logfile")"
-    "$PG_HOME/bin/pg_ctl" -D "$data" -l "$logfile" -o "-k /tmp -p $PGPORT" -w start >/dev/null
+    "$PG_HOME/bin/pg_ctl" -D "$PGDATA_DIR" -l "$logfile" -o "-k /tmp -p $PGPORT" -w start >/dev/null
     echo "started on :$PGPORT (log: $logfile)"
 }
 
 cmd_stop() {
     running || { echo "not running"; return; }
-    "$PG_HOME/bin/pg_ctl" -D "$data" -m fast -w stop >/dev/null
+    "$PG_HOME/bin/pg_ctl" -D "$PGDATA_DIR" -m fast -w stop >/dev/null
     echo "stopped"
 }
 
@@ -68,7 +81,6 @@ cmd_smoke() {
     fi
     cmd_build
     cmd_start
-    # Throwaway database so the smoke test never touches user data.
     local db="tsfm_smoke_$$"
     "${psql_cmd[@]}" -d postgres -c "CREATE DATABASE $db"
     trap '"${psql_cmd[@]}" -d postgres -c "DROP DATABASE IF EXISTS '"$db"'" >/dev/null' EXIT
@@ -80,7 +92,6 @@ SELECT tsfm_model_info()->>'model' AS model,
        tsfm_model_info()->>'simd_f32_lanes' AS simd_lanes,
        tsfm_model_info()->>'loaded' AS loaded;
 
--- A rising series must forecast a finite, sorted, roughly rising median.
 DO $$
 DECLARE
     h integer := 8;
@@ -113,12 +124,13 @@ SQL
 }
 
 case "${1:-}" in
-    build) cmd_build ;;
-    start) cmd_start ;;
-    stop) cmd_stop ;;
+    pginit)  cmd_pginit ;;
+    build)   cmd_build ;;
+    start)   cmd_start ;;
+    stop)    cmd_stop ;;
     regress) cmd_regress ;;
-    test) cmd_test ;;
-    smoke) cmd_smoke ;;
-    all) cmd_test; cmd_regress; cmd_smoke ;;
-    *) sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 2 ;;
+    test)    cmd_test ;;
+    smoke)   cmd_smoke ;;
+    all)     cmd_test; cmd_regress; cmd_smoke ;;
+    *) sed -n '2,21p' "${BASH_SOURCE[0]}"; exit 2 ;;
 esac

@@ -17,7 +17,6 @@ FROM postgres:${PG_VERSION}-bookworm AS build
 ARG PG_VERSION
 ARG TARGETARCH
 ARG ZIG_VERSION=0.17.1
-ARG PGZX_COMMIT=4d99bbc56be9a00aac3e27c6e733840245e54e89
 # Empty = x86_64_v3 on amd64, target baseline elsewhere. "native" tunes to the
 # build host: fast, but do not reuse that image on a different CPU.
 ARG TSFM_CPU=
@@ -43,11 +42,6 @@ RUN case "${TARGETARCH}" in \
         "https://ziglang.org/download/${ZIG_VERSION}/zig-${zig_arch}-linux-${ZIG_VERSION}.tar.xz" \
         | tar -xJ -C /opt \
     && ln -s "/opt/zig-${zig_arch}-linux-${ZIG_VERSION}/zig" /usr/local/bin/zig
-
-# pgzx is a path dependency in the source tree; its published package omits
-# build.zig.zon from .paths, so clone the pinned commit next to tsfm-pg.
-RUN git clone https://github.com/barddoo/pgzx /src/pgzx \
-    && git -C /src/pgzx checkout "${PGZX_COMMIT}"
 
 WORKDIR /src/tsfm-pg
 COPY . .

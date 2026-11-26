@@ -1,0 +1,74 @@
+# syntax=docker/dockerfile:1
+# Development image for tsfm-pg.
+#
+# Installs Zig and PostgreSQL (with dev headers) directly — no Nix required.
+# Supports PostgreSQL 15–19 (default: 17 to match the production Dockerfile).
+#
+# Build:
+#   docker build -f dev/docker/Dockerfile.dev -t tsfm-pg-dev .
+#   docker build --build-arg PG_MAJOR=16 -f dev/docker/Dockerfile.dev -t tsfm-pg-dev:pg16 .
+#
+# Run (mounts the repo at /workspace):
+#   docker run -it --rm -v "$PWD:/workspace" tsfm-pg-dev
+#   # or:
+#   docker compose -f dev/docker/docker-compose.yml run --rm dev
+
+ARG PG_MAJOR=17
+ARG PG_VERSION=17.5-1.pgdg120+1
+ARG ZIG_VERSION=0.17.1
+
+FROM debian:bookworm-slim
+
+LABEL org.opencontainers.image.source="https://github.com/barddoo/tsfm-pg"
+LABEL org.opencontainers.image.description="tsfm-pg development environment (Zig + PostgreSQL)"
+
+ARG PG_MAJOR
+ARG PG_VERSION
+ARG ZIG_VERSION
+ARG ZIG_MINISIGN_PUBKEY=RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+WORKDIR /workspace
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        curl ca-certificates gnupg \
+        libssl-dev libkrb5-dev \
+        xz-utils git sudo build-essential pkg-config
+
+RUN curl -fsSL --retry 5 --retry-delay 3 https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+         | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] \
+         https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+         > /etc/apt/sources.list.d/pgdg.list
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        "postgresql-${PG_MAJOR}=${PG_VERSION}" \
+        "postgresql-server-dev-${PG_MAJOR}=${PG_VERSION}"
+
+# Install minisign for Zig tarball verification
+ARG MINISIGN_VERSION=0.11
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then MS_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then MS_ARCH="aarch64"; \
+    else echo "unsupported arch: $ARCH" && exit 1; fi && \
+    curl -fsSL --retry 3 \
+         "https://github.com/jedisct1/minisign/releases/download/${MINISIGN_VERSION}/minisign-${MINISIGN_VERSION}-linux.tar.gz" \
+         -o /tmp/minisign.tar.gz && \
+    tar -xzf /tmp/minisign.tar.gz -C /tmp && \
+    install -m 0755 "/tmp/minisign-linux/${MS_ARCH}/minisign" /usr/local/bin/minisign && \
+    rm -rf /tmp/minisign.tar.gz /tmp/minisign-linux
+
+COPY --link dev/docker/install-zig.sh /usr/local/bin/install-zig.sh
+RUN install-zig.sh "${ZIG_VERSION}" /usr/local "${ZIG_MINISIGN_PUBKEY}" && \
+    rm -f /usr/local/bin/install-zig.sh /usr/local/bin/minisign
+
+ENV PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config
+ENV PATH="/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}"

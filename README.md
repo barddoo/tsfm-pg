@@ -221,10 +221,8 @@ zig build -Dcpu=native -p "$PG_HOME"
 become a Postgres error, not a segmentation fault that takes the backend down.
 Use `ReleaseFast` only for benchmarks.
 
-`tsfm` is fetched from the commit pinned in `build.zig.zon`. `pgzx` is a path
-dependency (`../pgzx`) because its published package omits `build.zig.zon` from
-`.paths`; clone it next to this repository. Both commits are recorded in
-`build.zig.zon` / `Dockerfile`.
+Both `tsfm` and `pgzx` are fetched from the commits pinned in `build.zig.zon`;
+no manual clone required.
 
 ### Dev loop script
 
@@ -238,7 +236,7 @@ scripts/dev.sh smoke      # one real forecast; needs TSFM_TEST_MODEL
 scripts/dev.sh all
 ```
 
-Env: `PG_HOME` (default `out/16`), `PGPORT` (5432), `PGUSER` (postgres),
+Env: `PG_HOME` (default `out/18`), `PGPORT` (5432), `PGUSER` (postgres),
 `TSFM_CPU` (native), `TSFM_TEST_MODEL`.
 
 ## CPU and SIMD
