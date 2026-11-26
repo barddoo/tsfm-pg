@@ -20,8 +20,8 @@
     },
     .dependencies = .{
         .pgzx = .{
-            .url = "git+https://github.com/barddoo/pgzx.git#2fd8c5277d2315f85b6934405feda4758db6b33f",
-            .hash = "pgzx-0.3.0-PsG6MO57CQCB08syWVg8iBx45_47ePd7l0rzHMnXXOA3",
+            .url = "git+https://github.com/barddoo/pgzx.git#7543fcf7af6a7f85e043e386366e8e853c245d22",
+            .hash = "pgzx-0.3.0-PsG6MK5_CQBwp_-7fH1vBY-LSDJvuKx046yTHx1oD5EN",
         },
         .tsfm = .{
             .url = "git+https://github.com/barddoo/tsfm-zig.git#35b89587d52e551b53502cfdd6573db604743279",

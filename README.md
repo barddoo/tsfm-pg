@@ -224,20 +224,27 @@ Use `ReleaseFast` only for benchmarks.
 Both `tsfm` and `pgzx` are fetched from the commits pinned in `build.zig.zon`;
 no manual clone required.
 
-### Dev loop script
+### Dev loop
+
+The [pgzx CLI](https://pgzx.barddoo.com/start/install/) manages the local cluster.
+It is built automatically from the fetched package on first use (via `.envrc` or manually):
 
 ```sh
-scripts/dev.sh build      # build + install into $PG_HOME
-scripts/dev.sh start      # start the local cluster if needed
-scripts/dev.sh stop
-scripts/dev.sh test       # engine tests, no Postgres
-scripts/dev.sh regress    # build + start + pg_regress
-scripts/dev.sh smoke      # one real forecast; needs TSFM_TEST_MODEL
-scripts/dev.sh all
+# First-time setup (once per checkout)
+zig build --help          # triggers package fetch, populates zig-pkg/
+cd zig-pkg/pgzx-*/  && zig build cli --prefix "$PRJ_ROOT/zig-out" && cd -
+eval "$(pgzx env)"        # sets PG_HOME, PGDATA, PGPORT, PGUSER, PATH
+pgzx init                 # initialise the cluster at out/pg/
+
+# Daily workflow
+pgzx start
+zig build -Dcpu=native -p "$PG_HOME"           # build + install
+zig build test --summary all                   # engine unit tests
+zig build pg_regress -p "$PG_HOME"             # SQL regression tests
+pgzx stop
 ```
 
-Env: `PG_HOME` (default `out/18`), `PGPORT` (5432), `PGUSER` (postgres),
-`TSFM_CPU` (native), `TSFM_TEST_MODEL`.
+With direnv, `direnv allow` runs the setup and `eval "$(pgzx env)"` automatically.
 
 ## CPU and SIMD
 
